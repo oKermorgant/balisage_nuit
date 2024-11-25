@@ -13,6 +13,9 @@ H = int(400*W/800)
 view_h = W//4
 hor = 3*view_h//4
 
+# sector margin to blurr
+margin = 2*np.pi/180
+
 
 def load_im(filename, target_height):
     im = cv2.imread(f'image/{filename}', -1)
@@ -78,6 +81,13 @@ def degrees(wsg):
             return deg
         return -deg
     return list(map(read, wsg.split(',')))
+
+
+def to_pi(a, positive = False):
+
+    if positive:
+        return to_pi(a-np.pi) + np.pi
+    return (a+np.pi) % (2*np.pi) - np.pi
 
 
 def parse_coord(config, miles = None):
@@ -175,10 +185,14 @@ def bgr(color, v = 1.):
 
 
 class Boat:
+
     def __init__(self, start, drift = 0.):
-        self.vx = 0.
+        self.vtarget = 200/min(abs(GPS.gps.K))
+        self.v = 0.
         self.drift = drift
         self.w = 0.
+        self.vc = 1.
+        self.vc_change = False
         self.c = start
         self.theta = 0.
         self.t0 = None
@@ -202,23 +216,30 @@ class Boat:
 
     def on_press(self,key):
 
-        vx = 200/min(abs(GPS.gps.K))
         w = 1.
 
         if key == Key.up:
-            self.vx = vx
+            self.v = self.vtarget
         elif key == Key.down:
-            self.vx = -vx
+            self.v = -self.vtarget
         elif key == Key.left:
             self.w = -w
         elif key == Key.right:
             self.w = w
+        elif key == Key.page_down and not self.vc_change:
+            self.vc /= 1.1
+            self.vc_change = True
+        elif key == Key.page_up and not self.vc_change:
+            self.vc *= 1.1
+            self.vc_change = True
 
     def on_release(self,key):
         if key in (Key.up, Key.down):
-            self.vx = 0.
+            self.v = 0.
         elif key in (Key.left, Key.right):
             self.w = 0.
+        elif key in (Key.page_down, Key.page_up):
+            self.vc_change = False
 
     def move(self):
 
@@ -231,19 +252,29 @@ class Boat:
 
         c,s = np.cos(self.theta), np.sin(self.theta)
         R = np.array([[c,-s],[s,c]])
-        self.c += np.dot(R,[[self.vx],[0]]).flatten() * dt
-        self.c[0] -= self.drift*dt
-        self.theta += self.w*dt
+        self.c += np.dot(R,[[self.v*self.vc],[0]]).flatten() * dt
+        self.c[0] -= self.drift*self.vc*dt
+        self.theta += self.w*np.sqrt(self.vc)*dt
 
     def display(self, im):
         paste(bto, im, GPS.gps.pixels(self.c)[0], self.theta)
 
+        cv2.putText(im, f'{self.vtarget*self.vc:.02f} kn',
+                    [W//2,int(.95*H)], cv2.FONT_HERSHEY_SIMPLEX, 1,
+                    [1.,1.,1.])
 
-def to_pi(a, positive = False):
+    def adapt_speed(self, lights, sectors):
 
-    if positive:
-        return to_pi(a-np.pi) + np.pi
-    return (a+np.pi) % (2*np.pi) - np.pi
+        c = 1.
+        for light in lights:
+            d = dist(self, light)
+            if d < 1.:
+                c = min(c, d)
+
+        # speed down wrt nearest sector
+        c = min(c, min([abs(sector.rel(to_pi(angle(sector.c, self.c), True))) for sector in sectors])/margin)
+
+        self.vc = max(c, .1)
 
 
 class Sector:
@@ -441,7 +472,6 @@ class Light:
             # find where we are
             a = to_pi(angle(self.c, boat.c), True)
             start = np.argmin([abs(sector.rel(a)) for sector in self.sectors])
-            margin = 2*np.pi/180
             rel = np.clip((self.sectors[start].rel(a)/margin+1)/2, 0,1)
 
             cn = bgr(self.sectors[start].color)

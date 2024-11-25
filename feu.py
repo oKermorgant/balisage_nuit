@@ -50,6 +50,7 @@ with Listener(on_press=boat.on_press, on_release=boat.on_release) as listener:
 
         top = top_base.copy()
         view = view_base.copy()
+        boat.adapt_speed(lights, sectors)
         boat.move()
         boat.display(top)
 
