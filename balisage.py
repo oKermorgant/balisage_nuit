@@ -73,10 +73,15 @@ def degrees(wsg):
 
     def read(coord):
         coord, axis = coord.rsplit(' ',1)
-        deg, minutes = coord.split('°')
-        minutes,sec = minutes.strip("'").split("'",1)
-        deg = float(deg) + float(minutes)/60 + float(sec)/3600
-
+        numbers = ''
+        for c in coord:
+            if c.isdigit():
+                numbers += c
+            elif c in '.,':
+                numbers += '.'
+            else:
+                numbers += ' '
+        deg = sum(c/60**i for i,c in enumerate(map(float,numbers.split())))
         if axis.strip() in ('N','E'):
             return deg
         return -deg
@@ -119,10 +124,9 @@ class GPS:
         GPS.gps = self
 
         # gather all coordinates
-        coordinates = parse_coord(config)
+        coordinates = np.array(parse_coord(config))
 
         # convert to nautical miles
-        coordinates = np.array(coordinates)
         center = .5*(np.amax(coordinates,0) + np.amin(coordinates,0))
 
         dx = 1.
@@ -248,8 +252,11 @@ class Boat:
             self.vx = 0.
         elif key in (Key.left, Key.right):
             self.w = 0.
-        if hasattr(key, 'char') and key.char in '[]':
-            self.vy = 0
+        try:
+            if hasattr(key, 'char') and key.char in '[]':
+                self.vy = 0
+        except TypeError:
+            return
 
     def move(self):
 
