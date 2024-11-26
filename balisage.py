@@ -18,7 +18,7 @@ margin = 2*np.pi/180
 
 
 def load_im(filename, target_height):
-    im = cv2.imread(f'image/{filename}', -1)
+    im = cv2.imread(f'images/{filename}', -1)
     Y,X = im.shape[:2]
     ratio = target_height/Y
     im = cv2.resize(im, (int(X*ratio),int(Y*ratio)))
@@ -186,16 +186,19 @@ def bgr(color, v = 1.):
 
 class Boat:
 
-    def __init__(self, start, drift = 0.):
+    def __init__(self, start, drift = 0., obs = 1.):
         self.vtarget = 200/min(abs(GPS.gps.K))
-        self.v = 0.
+        self.nearest = 100.
+        self.vx = 0.
+        self.vy = 0.
         self.drift = drift
         self.w = 0.
         self.vc = 1.
-        self.vc_change = False
+        self.obs = obs
         self.c = start
         self.theta = 0.
         self.t0 = None
+        self.fwd = 0.
 
     def image(self):
 
@@ -206,40 +209,47 @@ class Boat:
         #     for y in range(0,view_h):
         #         if y % 10 < 5:
         #             cv2.circle(im, [x,y],1,[1.,1.,1.])
-
-        im[-2:] = [1.,1.,1.]
-
-        mid = W//2
-        w = W//20
-        cv2.fillPoly(im, [np.array([[mid, view_h-W//16],[mid-w,view_h-2],[mid+w,view_h-2]])],[.5,.5,.5])
         return im
 
-    def on_press(self,key):
+    def draw_hull(self, im):
+        mid = W//2
+        w = W//20
+        if self.fwd:
+            cv2.fillPoly(im, [np.array([[mid-2*w, view_h-W//30],[mid+2*w, view_h-W//30],
+                                        [mid+3*w,view_h-3],[mid-3*w,view_h-3]])],[.5,.5,.5])
+        else:
+            cv2.fillPoly(im, [np.array([[mid, view_h-W//16],
+                                        [mid-w,view_h-3],[mid+w,view_h-3]])],[.5,.5,.5])
+        im[-2:] = [1.,1.,1.]
+
+    def on_press(self,key: Key):
 
         w = 1.
 
         if key == Key.up:
-            self.v = self.vtarget
+            self.vx = self.vtarget
         elif key == Key.down:
-            self.v = -self.vtarget
+            self.vx = -self.vtarget
         elif key == Key.left:
             self.w = -w
         elif key == Key.right:
             self.w = w
-        elif key == Key.page_down and not self.vc_change:
-            self.vc /= 1.1
-            self.vc_change = True
-        elif key == Key.page_up and not self.vc_change:
-            self.vc *= 1.1
-            self.vc_change = True
+        elif key == Key.ctrl_r:
+            self.fwd = np.pi-self.fwd
+        if not hasattr(key, 'char'):
+            return
+        if key.char == '[':
+            self.vy = -self.vtarget/10
+        elif key.char == ']':
+            self.vy = self.vtarget/10
 
     def on_release(self,key):
         if key in (Key.up, Key.down):
-            self.v = 0.
+            self.vx = 0.
         elif key in (Key.left, Key.right):
             self.w = 0.
-        elif key in (Key.page_down, Key.page_up):
-            self.vc_change = False
+        if hasattr(key, 'char') and key.char in '[]':
+            self.vy = 0
 
     def move(self):
 
@@ -252,38 +262,51 @@ class Boat:
 
         c,s = np.cos(self.theta), np.sin(self.theta)
         R = np.array([[c,-s],[s,c]])
-        self.c += np.dot(R,[[self.v*self.vc],[0]]).flatten() * dt
+        self.c += np.dot(R,[[self.vx*self.vc],[self.vy*self.vc]]).flatten() * dt
         self.c[0] -= self.drift*self.vc*dt
         self.theta += self.w*np.sqrt(self.vc)*dt
 
-    def display(self, im):
-        paste(bto, im, GPS.gps.pixels(self.c)[0], self.theta)
+    def display(self, top, view):
+        paste(bto, top, GPS.gps.pixels(self.c)[0], self.theta)
 
-        cv2.putText(im, f'{self.vtarget*self.vc:.02f} kn',
-                    [W//2,int(.95*H)], cv2.FONT_HERSHEY_SIMPLEX, 1,
-                    [1.,1.,1.])
+        cv2.putText(view, f'{self.vtarget*self.vc:.02f} kn',
+                    [W//10,int(.95*view_h)], cv2.FONT_HERSHEY_SIMPLEX, 1,
+                    [1.,1.,1.], 2, cv2.LINE_AA, False)
 
-    def adapt_speed(self, lights, sectors):
+        cv2.putText(view, f'Obs. @ {self.nearest:.02f} M',
+                    [3*W//4,int(.95*view_h)], cv2.FONT_HERSHEY_SIMPLEX, 1,
+                    [1.,1.,1.], 2, cv2.LINE_AA, False)
+
+    def adapt_speed(self, lights):
+
+        for light in lights:
+            light.boat = {'d': dist(light, self), 'a': to_pi(angle(light.c, self.c), True)}
+
+        lights.sort(key = lambda light: -light.boat['d'])
 
         c = 1.
+        cmin = .1
+        self.nearest = 100.
         for light in lights:
-            d = dist(self, light)
-            if d < 1.:
-                c = min(c, d)
+            d = light.boat['d']
+            self.nearest = min(self.nearest, d)
+            if d < self.obs:
+                c = min(c, np.sqrt(d/self.obs))
+                # speed down wrt nearest sector
+                if light.sectors:
+                    c = min(c, min([abs(sector.rel(light.boat['a'])) for sector in light.sectors])/margin)
+            if c < cmin:
+                break
 
-        # speed down wrt nearest sector
-        c = min(c, min([abs(sector.rel(to_pi(angle(sector.c, self.c), True))) for sector in sectors])/margin)
-
-        self.vc = max(c, .1)
+        self.vc = .5*(self.vc + max(c, cmin))
 
 
 class Sector:
 
-    rng = 5.
-
-    def __init__(self, center, color, start, end):
+    def __init__(self, center, color, start, end, height):
         self.c = center
         self.color = color
+        self.rng = np.clip(height, 3, 10)
 
         self.start = to_pi(start, True)
         self.span = to_pi(end - start, True)
@@ -309,7 +332,7 @@ class Sector:
             self.write(im)
             return
 
-        span = 2.
+        span = 1.
         for a,da in ((self.start, 1), (self.start+self.span, -1)):
             self.write(im, a, da*span*np.pi/180)
 
@@ -318,31 +341,27 @@ class Sector:
 
 
 def parse_pattern(pat):
-    if pat == 'N':
+    if pat.startswith('N'):
         pat = 'Q'
-    elif pat == 'E':
+    elif pat.startswith('E'):
         pat = 'Q(3).15s'
-    elif pat == 'S':
+    elif pat.startswith('S'):
         pat = 'Q(6)+LFl.15s'
-    elif pat == 'W':
+    elif pat.startswith('W'):
         pat = 'Q(9).15s'
 
     # default values
-    height = 3
-    per = 4.
+    meta = {'m': 3., 's': 4., 'M': 5.}
     if '.' in pat:
         pat,info = pat.split('.')
-        meta = info.replace('s','m').split('m')[:-1]
+        avail = ''.join(c for c in info if c.isalpha())
+        for c in 'smM':
+            if c in avail:
+                idx = info.index(c)
+                meta[c] = float(info[:idx].replace(',','.'))
+                info = info[idx+1:]
 
-        if len(meta) == 1:
-            if 's' in info:
-                meta.append(str(height))
-            else:
-                meta.insert(0,str(per))
-        per = float(meta[0].replace(',','.'))
-        height = float(meta[1].replace(',','.'))
-
-    colors = ''.join([c for c in pat if c in 'WRGY'])
+    colors = ''.join([c for c in pat if c in 'WRGYV'])
     if not colors:
         colors = 'W'
     pat = pat.replace(colors, '').strip('.')
@@ -352,7 +371,10 @@ def parse_pattern(pat):
         colors = f'{other}W{other}'
     elif len(colors) == 3:
         colors = 'RWG'
-    return pat, per, colors, height
+    if colors == 'V':
+        pat = 'Iso'
+        colors = 'N'
+    return pat, colors, meta
 
 
 class Light:
@@ -368,10 +390,11 @@ class Light:
 
     def __init__(self, pat, geom):
 
-        self.cur = -1
-        pat, per, self.colors, self.height = parse_pattern(pat)
-        self.on = [False for _ in range(int(per/dt))]
-
+        pat, self.colors, meta = parse_pattern(pat)
+        self.height = meta['m']
+        self.rng = meta['M']
+        self.on = [False for _ in range(int(meta['s']/dt))]
+        self.cur = np.random.randint(len(self.on))
         # parse sectors
         self.sectors = []
         if isinstance(geom, dict):
@@ -380,13 +403,13 @@ class Light:
             sectors = sorted([(angle(self.c,point), color[0]) for color,point in geom.items() if color != 'pos'])
             for i, (start, color) in enumerate(sectors):
                 end = sectors[(i+1) % len(sectors)][0]
-                self.sectors.append(Sector(self.c, color, start, end))
+                self.sectors.append(Sector(self.c, color, start, end, meta['M']))
         else:
             self.c = geom
 
         # no need for time pattern
         if pat == 'Iso':
-            self.fill(per/2, per)
+            self.fill(meta['s']/2, meta['s'])
             return
 
         bonus = None
@@ -394,7 +417,11 @@ class Light:
         dur = {'Q': .5, 'VQ': .25, 'Fl': 1., 'LFl': 2.5}
 
         if '(' not in pat:
-            n = per // dur[pat] if 'Q' in pat else 1
+            if 'Q' in pat:
+                self.cur = -1
+                n = meta['s'] // dur[pat]
+            else:
+                n = 1
         else:
             pat,other = pat.split(')')
             pat,n = pat.split('(')
@@ -446,11 +473,12 @@ class Light:
         # update time step
         self.cur = (self.cur+1) % len(self.on)
 
-        # display pole anyway
-        a = to_pi(angle(boat.c, self.c) - boat.theta)
+        a = to_pi(self.boat['a']+np.pi - (boat.theta+boat.fwd))
         if abs(a) > np.pi/2:
             return
-        d = dist(self,boat)
+        d = self.boat['d']
+        if d > self.rng:
+            return
 
         x = int(a*W/np.pi + W/2) % W
 
@@ -461,16 +489,17 @@ class Light:
         rad = max(2, min(6,int(2*self.height/d)))
         wtop = int(.6*rad)
         wbot = int(1.5*rad)
+        # display pole anyway
         pole = np.array([[x+wtop,y],[x-wtop,y],[x-wbot,hor],[x+wbot,hor]])
-        cv2.fillPoly(im, [pole], [0,0,0])
-
         if not self.on[self.cur]:
+            cv2.fillPoly(im, [pole], [0,0,0])
+            boat.draw_hull(im)
             return
 
         color = bgr(self.colors[0])
         if self.sectors:
             # find where we are
-            a = to_pi(angle(self.c, boat.c), True)
+            a = self.boat['a']
             start = np.argmin([abs(sector.rel(a)) for sector in self.sectors])
             rel = np.clip((self.sectors[start].rel(a)/margin+1)/2, 0,1)
 
@@ -478,4 +507,14 @@ class Light:
             cp = bgr(self.sectors[start-1].color)
             color = rel*cn + (1-rel)*cp
 
-        cv2.circle(im, [x,y], rad, color, -1)
+        fade = min(.2, d/5) # .2*(self.rng-d)/self.rng
+
+        if (color != bgr('N')).any():
+            cv2.fillPoly(im, [pole], fade**2*color)
+            cv2.circle(im, [x,y], rad, color, -1)
+            if Light.reflexion and d < 1.:
+                cv2.line(im, [x,hor],[W//2,2*view_h],fade*color,2)
+        else:
+            cv2.fillPoly(im, [pole], [0,0,0])
+
+        boat.draw_hull(im)

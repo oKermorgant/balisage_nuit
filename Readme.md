@@ -4,13 +4,20 @@ Le programme `feu.py` simule la navigation d'un bateau de nuit dans une zone.
 
 Il peut lire un fichier de zone ou prendre un motif de feu.
 
+<img src="images/teignouse.png" alt="drawing" width="400"/>
+<!-- ![](images/teignouse.png) -->
+
 ## Déplacement du bateau
 
 Le bateau bouge et tourne avec les flèches du clavier. On peut imposer une dérive (en nœuds, direction sud) avec:
 
 `feu.py -d derive`
 
-## Écriture des motifs
+Le bateau ralentit à proximité des obstacles et des bords de secteurs, la distance se change avec :
+
+`feu.py -o <distance en M>`
+
+## Simulation feu unique
 
 `feu.py -p <motif>` où le motif est écrit comme sur les cartes Shom:
 
