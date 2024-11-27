@@ -44,7 +44,7 @@ Un champ avec le motif du feu contenant:
 
     - un champ `pos` indiquant la position GPS
     - des champs de la couleur (`W1, R1, R2, G1...`) indiquant la position GPS d'un point sur le bord tribord du secteur
-    - utiliser `N` pour un secteur sans lumière
+    - utiliser `B` (ou `B1, B2...`) pour un secteur sans lumière
 
 ## Exemples
 

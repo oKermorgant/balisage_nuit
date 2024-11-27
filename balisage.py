@@ -184,7 +184,7 @@ def angle(o,x):
 
 
 def bgr(color, v = 1.):
-    bgr = {'W': [1.,1.,1.], 'R': [0,0,1.], 'G': [0,1.,0], 'Y': [0,1.,1.], 'N': [.3,0.,0.]}
+    bgr = {'W': [1.,1.,1.], 'R': [0,0,1.], 'G': [0,1.,0], 'Y': [0,1.,1.], 'B': [.3,0.,0.]}
     return np.array([float(v*c) for c in bgr[color]])
 
 
@@ -207,7 +207,7 @@ class Boat:
     def image(self):
 
         im = np.zeros((view_h,W,3))
-        im[:hor] = bgr('N')
+        im[:hor] = bgr('B')
 
         # for x in (W//4,3*W//4):
         #     for y in range(0,view_h):
@@ -320,7 +320,7 @@ class Sector:
 
     def write(self, im, start = None, span = None):
 
-        if self.color == 'N':
+        if self.color == 'B':
             return
 
         if start is None or span is None:
@@ -368,7 +368,7 @@ def parse_pattern(pat):
                 meta[c] = float(info[:idx].replace(',','.'))
                 info = info[idx+1:]
 
-    colors = ''.join([c for c in pat[1:] if c in 'WRGYV'])
+    colors = ''.join([c for c in pat if c in 'WRGYB'])
     if not colors:
         colors = 'W'
     pat = pat.replace(colors, '').strip('.')
@@ -378,9 +378,8 @@ def parse_pattern(pat):
         colors = f'{other}W{other}'
     elif len(colors) == 3:
         colors = 'RWG'
-    if colors == 'V':
+    if colors == 'B':
         pat = 'Iso'
-        colors = 'N'
     return pat, colors, meta
 
 
@@ -515,7 +514,7 @@ class Light:
 
         fade = min(.2, d/5)  # .2*(self.rng-d)/self.rng
 
-        if (color != bgr('N')).any():
+        if (color != bgr('B')).any():
             cv2.fillPoly(im, [pole], fade**2*color)
             visi = min(1, (1-d/self.rng)/self.visi)
             cv2.circle(im, [x,y], rad, visi*color, -1)
