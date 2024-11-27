@@ -146,8 +146,8 @@ class GPS:
 
         # get span
         dx,dy = np.amax(miles,0) - np.amin(miles,0)
-        dx = max(dx,1.)
-        dy = max(dy,1.)
+        dx = max(dx,.5)
+        dy = max(dy,.5)
 
         # target image 800x600
 
@@ -156,7 +156,7 @@ class GPS:
             dx = H/W*dy
         else:
             # increase long span
-            dy = W/H*dy
+            dy = W/H*dx
 
         dx *= 1.1
         dy *= 1.1
@@ -219,8 +219,8 @@ class Boat:
         mid = W//2
         w = W//20
         if self.fwd:
-            cv2.fillPoly(im, [np.array([[mid-2*w, view_h-W//30],[mid+2*w, view_h-W//30],
-                                        [mid+3*w,view_h-3],[mid-3*w,view_h-3]])],[.5,.5,.5])
+            rad = int(2*view_h)
+            cv2.circle(im, [mid, view_h-W//30+rad], rad, [.5,.5,.5], -1)
         else:
             cv2.fillPoly(im, [np.array([[mid, view_h-W//16],
                                         [mid-w,view_h-3],[mid+w,view_h-3]])],[.5,.5,.5])
@@ -386,6 +386,8 @@ def parse_pattern(pat):
 
 class Light:
 
+    visi = 0.75
+
     @staticmethod
     def build(pat, geom):
 
@@ -483,10 +485,8 @@ class Light:
         a = to_pi(self.boat['a']+np.pi - (boat.theta+boat.fwd))
         if abs(a) > np.pi/2:
             return
-        d = self.boat['d']
-        if d > self.rng:
-            return
 
+        d = self.boat['d']
         x = int(a*W/np.pi + W/2) % W
 
         # seen height
@@ -498,30 +498,29 @@ class Light:
         wbot = int(1.5*rad)
         # display pole anyway
         pole = np.array([[x+wtop,y],[x-wtop,y],[x-wbot,hor],[x+wbot,hor]])
-        if not self.on[self.cur]:
+        if not self.on[self.cur] or d > self.rng:
             cv2.fillPoly(im, [pole], [0,0,0])
-            boat.draw_hull(im)
             return
 
         color = bgr(self.colors[0])
         if self.sectors:
-            # find where we are
+            # find nearest sector border
             a = self.boat['a']
             start = np.argmin([abs(sector.rel(a)) for sector in self.sectors])
             rel = np.clip((self.sectors[start].rel(a)/margin+1)/2, 0,1)
-
+            # blend corresponding color
             cn = bgr(self.sectors[start].color)
             cp = bgr(self.sectors[start-1].color)
             color = rel*cn + (1-rel)*cp
 
-        fade = min(.2, d/5) # .2*(self.rng-d)/self.rng
+        fade = min(.2, d/5)  # .2*(self.rng-d)/self.rng
 
         if (color != bgr('N')).any():
             cv2.fillPoly(im, [pole], fade**2*color)
-            cv2.circle(im, [x,y], rad, color, -1)
+            visi = min(1, (1-d/self.rng)/self.visi)
+            cv2.circle(im, [x,y], rad, visi*color, -1)
             if Light.reflexion and d < 1.:
                 cv2.line(im, [x,hor],[W//2,2*view_h],fade*color,2)
         else:
             cv2.fillPoly(im, [pole], [0,0,0])
 
-        boat.draw_hull(im)

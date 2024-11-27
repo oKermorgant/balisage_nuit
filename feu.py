@@ -14,11 +14,14 @@ parser.add_argument('-d', '--drift', type=float, help='Dérive (sud) due au vent
 parser.add_argument('-f', '--file', type=str, help='Configuration',default='zones/default.yaml')
 parser.add_argument('-o', '--obs', type=float, help='Distance pour vitesse réduite',default=5.)
 parser.add_argument('-r', '--reflexion', action='store_true', default = False)
+parser.add_argument('-v', '--visi', type=float, default = 0.75, help='Pourcentage de la portée du feu où on le voit brillant')
 
 args = parser.parse_args()
 
 with open(args.file) as f:
     config = yaml.safe_load(f.read())
+
+cv2.destroyAllWindows()
 
 if args.pattern:
     config[args.pattern] = config.pop('Fl.3s')
@@ -35,6 +38,7 @@ top_base = gps.image()
 
 lights = [Light.build(pat, geom) for pat,geom in config.items() if pat != 'start']
 Light.reflexion = args.reflexion
+Light.visi = 1.-args.visi
 
 # write base top image
 sectors = sum([light.sectors for light in lights],start=[])
@@ -65,6 +69,7 @@ with Listener(on_press=boat.on_press, on_release=boat.on_release) as listener:
 
         for light in lights:
             light.seen_from(boat, view)
+        boat.draw_hull(view)
 
         cv2.imshow(winname, vstack((view, top)))
         cv2.waitKey(1)
