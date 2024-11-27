@@ -368,7 +368,7 @@ def parse_pattern(pat):
                 meta[c] = float(info[:idx].replace(',','.'))
                 info = info[idx+1:]
 
-    colors = ''.join([c for c in pat if c in 'WRGYV'])
+    colors = ''.join([c for c in pat[1:] if c in 'WRGYV'])
     if not colors:
         colors = 'W'
     pat = pat.replace(colors, '').strip('.')
