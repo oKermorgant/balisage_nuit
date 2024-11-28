@@ -107,6 +107,13 @@ def parse_coord(config, miles = None):
                 else:
                     config[key][sub] = miles[cur]
                     cur += 1
+        elif isinstance(config[key], list):
+            for i in range(len(config[key])):
+                if miles is None:
+                    coordinates.append(degrees(config[key][i]))
+                else:
+                    config[key][i] = miles[cur]
+                    cur += 1
         elif miles is None:
             coordinates.append(degrees(config[key]))
         else:
@@ -280,7 +287,7 @@ class Boat:
                     [W//10,int(.95*view_h)], cv2.FONT_HERSHEY_SIMPLEX, 1,
                     [1.,1.,1.], 2, cv2.LINE_AA, False)
 
-        cv2.putText(view, f'Obs. @ {self.nearest:.02f} M',
+        cv2.putText(view, f'Cap {to_pi(self.theta, True)*180/np.pi:.01f}',
                     [3*W//4,int(.95*view_h)], cv2.FONT_HERSHEY_SIMPLEX, 1,
                     [1.,1.,1.], 2, cv2.LINE_AA, False)
 
@@ -373,6 +380,8 @@ def parse_pattern(pat):
         colors = 'W'
     pat = pat.replace(colors, '').strip('.')
 
+    offset = hash((pat, meta['s']))
+
     if len(colors) == 2:
         other = ''.join([c for c in colors if c != 'W'])
         colors = f'{other}W{other}'
@@ -380,7 +389,7 @@ def parse_pattern(pat):
         colors = 'RWG'
     if colors == 'B':
         pat = 'Iso'
-    return pat, colors, meta
+    return pat, colors, meta, offset
 
 
 class Light:
@@ -398,11 +407,11 @@ class Light:
 
     def __init__(self, pat, geom):
 
-        pat, self.colors, meta = parse_pattern(pat)
+        pat, self.colors, meta, offset = parse_pattern(pat)
         self.height = meta['m']
         self.rng = meta['M']
         self.on = [False for _ in range(int(meta['s']/dt))]
-        self.cur = np.random.randint(len(self.on))
+        self.cur = offset % len(self.on)
         # parse sectors
         self.sectors = []
         if isinstance(geom, dict):

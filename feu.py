@@ -32,11 +32,20 @@ else:
 
 cv2.namedWindow(winname, cv2.WINDOW_NORMAL)
 cv2.resizeWindow(winname, 1000, 700)
+cv2.setWindowProperty(winname, cv2.WND_PROP_TOPMOST, 1)
+cv2.waitKey(1)
 
 gps = GPS(config)
 top_base = gps.image()
 
-lights = [Light.build(pat, geom) for pat,geom in config.items() if pat != 'start']
+boat = Boat(config.pop('start'), args.drift, args.obs)
+
+lights = []
+for pat, geom in config.items():
+    if isinstance(geom, list):
+        lights += [Light.build(pat, sub) for sub in geom]
+    else:
+        lights.append(Light.build(pat, geom))
 Light.reflexion = args.reflexion
 Light.visi = 1.-args.visi
 
@@ -52,10 +61,7 @@ for sector in sectors:
 for light in lights:
     light.display(top_base)
 
-
-boat = Boat(config['start'], args.drift, args.obs)
 view_base = boat.image()
-
 
 with Listener(on_press=boat.on_press, on_release=boat.on_release) as listener:
 
