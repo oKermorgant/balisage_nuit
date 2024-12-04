@@ -515,7 +515,9 @@ class Light:
             # find nearest sector border
             a = self.boat['a']
             start = np.argmin([abs(sector.rel(a)) for sector in self.sectors])
-            rel = np.clip((self.sectors[start].rel(a)/margin+1)/2, 0,1)
+
+            this_margin = min(margin, self.sectors[start].span/4)
+            rel = np.clip((self.sectors[start].rel(a)/this_margin+1)/2, 0,1)
             # blend corresponding color
             cn = bgr(self.sectors[start].color)
             cp = bgr(self.sectors[start-1].color)
