@@ -143,7 +143,7 @@ class GPS:
         R = 6371e3 / 1852
         dy = np.arccos(np.sin(lat)**2+np.cos(lat)**2*np.cos(1/60*to_rad))*R
 
-        dxy = np.array([[dx,dy]])
+        dxy = np.array([[dx,dy]])/60.
 
         miles = (coordinates-center)/dxy
         parse_coord(config, miles)
@@ -232,7 +232,7 @@ class Boat:
 
     def on_press(self,key: Key):
 
-        w = 1.
+        w = 2.
 
         if key == Key.up:
             self.vx = self.vtarget
