@@ -4,8 +4,7 @@ Le programme `feu.py` simule la navigation d'un bateau de nuit dans une zone.
 
 Il peut lire un fichier de zone ou prendre un motif de feu.
 
-<img src="images/teignouse.png" alt="drawing" width="400"/>
-<!-- ![](images/teignouse.png) -->
+<img src="images/teignouse.gif" alt="drawing" width="400"/>
 
 ## Déplacement du bateau
 
