@@ -139,12 +139,9 @@ class GPS:
         dx = 1.
         to_rad = np.pi/180
 
-        # TODO improve this one, use proper WSG84
-        dy = 6366/1.852*2*np.arcsin(abs(np.cos(center[0]*to_rad)*(np.sin(to_rad/2))))
         lat = center[0]*to_rad
-        dy = np.arccos(np.sin(lat)**2+np.cos(lat)**2*np.cos(to_rad))*6366/1.852
-
-        dy = np.cos(center[0]*to_rad)*1.6
+        R = 6371e3 / 1852
+        dy = np.arccos(np.sin(lat)**2+np.cos(lat)**2*np.cos(1/60*to_rad))*R
 
         dxy = np.array([[dx,dy]])/60.
 
