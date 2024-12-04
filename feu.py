@@ -2,9 +2,9 @@
 
 import cv2
 import argparse
-from balisage import Light, GPS, Boat
+from balisage import Light, GPS, Boat, angle
 from pynput.keyboard import Listener
-from numpy import vstack
+from numpy import vstack, median
 import yaml
 
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -38,7 +38,7 @@ cv2.waitKey(1)
 gps = GPS(config)
 top_base = gps.image()
 
-boat = Boat(config.pop('start'), args.drift, args.obs)
+boat = config.pop('start')
 
 lights = []
 for pat, geom in config.items():
@@ -48,6 +48,12 @@ for pat, geom in config.items():
         lights.append(Light.build(pat, geom))
 Light.reflexion = args.reflexion
 Light.visi = 1.-args.visi
+
+# coord of all lights
+center = median([light.c for light in lights], 0)
+
+boat = Boat(boat, theta = angle(boat, center),
+            drift = args.drift, obs = args.obs)
 
 # write base top image
 sectors = sum([light.sectors for light in lights],start=[])

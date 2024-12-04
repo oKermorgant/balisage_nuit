@@ -197,7 +197,7 @@ def bgr(color, v = 1.):
 
 class Boat:
 
-    def __init__(self, start, drift = 0., obs = 1.):
+    def __init__(self, start, theta = 0., drift = 0., obs = 1.):
         self.vtarget = 200/min(abs(GPS.gps.K))
         self.nearest = 100.
         self.vx = 0.
@@ -207,7 +207,7 @@ class Boat:
         self.vc = 1.
         self.obs = obs
         self.c = start
-        self.theta = 0.
+        self.theta = theta
         self.t0 = None
         self.fwd = 0.
 
