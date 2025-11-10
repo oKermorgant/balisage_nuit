@@ -71,7 +71,7 @@ view_base = boat.image()
 
 with Listener(on_press=boat.on_press, on_release=boat.on_release) as listener:
 
-    while True:
+    while boat.running:
 
         top = top_base.copy()
         view = view_base.copy()

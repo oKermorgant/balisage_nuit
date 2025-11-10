@@ -21,15 +21,14 @@ def load_im(filename, target_height):
     im = cv2.imread(f'images/{filename}', -1)
     Y,X = im.shape[:2]
     ratio = target_height/Y
-    im = cv2.resize(im, (int(X*ratio),int(Y*ratio)))
-    return im
+    return cv2.resize(im, (int(X*ratio),int(Y*ratio)))
 
 
 # Boat sprite
 bto = load_im('bto.png', W/20)
 
 # Light sprite
-star = load_im('feu.png',30)
+star = load_im('feu.png', 30)
 
 
 def paste(src, dst, pos, rotation = 0.):
@@ -69,7 +68,6 @@ def paste(src, dst, pos, rotation = 0.):
 
 
 def degrees(wsg):
-    # lat,lon = wsg.split(',')
 
     def read(coord):
         coord, axis = coord.rsplit(' ',1)
@@ -207,6 +205,7 @@ class Boat:
         self.theta = theta
         self.t0 = None
         self.fwd = 0.
+        self.running = True
 
     def image(self):
 
@@ -250,6 +249,8 @@ class Boat:
             self.vy = -self.vtarget/10
         elif key.char == ']':
             self.vy = self.vtarget/10
+        elif key.char == 'q':
+            self.running = False
 
     def on_release(self,key):
         if key in (Key.up, Key.down):
@@ -284,9 +285,11 @@ class Boat:
                     [W//10,int(.95*view_h)], cv2.FONT_HERSHEY_SIMPLEX, 1,
                     [1.,1.,1.], 2, cv2.LINE_AA, False)
 
-        cv2.putText(view, f'Cap {to_pi(self.theta, True)*180/np.pi:.01f}',
+        cap = int(to_pi(self.theta, True)*180/np.pi)
+        cv2.putText(view, f'Cap{' '*(3-len(str(cap)))} {cap}',
                     [3*W//4,int(.95*view_h)], cv2.FONT_HERSHEY_SIMPLEX, 1,
                     [1.,1.,1.], 2, cv2.LINE_AA, False)
+        cv2.circle(view, [3*W//4+145,int(.95*view_h)-20], 6, [1.,1.,1.], 2)
 
     def adapt_speed(self, lights):
 
