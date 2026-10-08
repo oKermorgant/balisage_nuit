@@ -3,9 +3,11 @@
 import cv2
 import argparse
 from balisage import Light, GPS, Boat, angle
-from pynput.keyboard import Listener
+from evdev import InputDevice, categorize, ecodes
+import os
 from numpy import vstack, median
 import yaml
+from threading import Thread
 
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.description = 'Balisage de nuit'
@@ -69,19 +71,87 @@ for light in lights:
 
 view_base = boat.image()
 
-with Listener(on_press=boat.on_press, on_release=boat.on_release) as listener:
 
-    while boat.running:
+class Listener:
+    def __init__(self, on_press = None, on_release = None):
 
-        top = top_base.copy()
-        view = view_base.copy()
-        boat.adapt_speed(lights)
-        boat.move()
-        boat.display(top, view)
+        self.on_press = on_press
+        self.on_release = on_release
 
-        for light in lights:
-            light.seen_from(boat, view)
-        boat.draw_hull(view)
+        # identify keyboard
+        self.src = None
+        inputs = '/dev/input/by-path'
+        kbs = [dev for dev in os.listdir(inputs) if dev.endswith('-kbd')]
 
-        cv2.imshow(winname, vstack((view, top)))
-        cv2.waitKey(1)
+        self.threads = []
+
+        for kb in kbs:
+            self.threads.append(Thread(target=self.listen, args=(f'{inputs}/{kb}',)))
+
+        for t in self.threads:
+            t.start()
+
+    def stop(self):
+        self.src = 'stop'
+
+    def listen(self, dev):
+
+        keyboard_dev = InputDevice(dev)
+
+        # stop listening to this one if another was used
+        event = None
+        while self.src in (None, dev):
+
+            event = keyboard_dev.read_one()
+            if event is None:
+                continue
+
+            if event.type != ecodes.EV_KEY:
+                continue
+
+            if event.value == 1:  # Key press, identify this keyboard
+                if self.src is None:
+                    self.src = dev
+                    break
+        else:
+            return
+
+        # main loop for source keyboard
+        for event in keyboard_dev.read_loop():
+
+            if self.src != dev:
+                return
+
+            if event.type != ecodes.EV_KEY or event.value == 2:
+                continue
+
+            key = categorize(event).keycode[4:]
+
+            if event.value == 1:  # Key press
+                if self.on_press is not None:
+                    self.on_press(key)
+
+            elif event.value == 0:   # release
+                if self.on_release is not None:
+                    self.on_release(key)
+
+
+listener = Listener(on_press=boat.on_press, on_release=boat.on_release)
+
+while boat.running:
+
+    top = top_base.copy()
+    view = view_base.copy()
+    boat.adapt_speed(lights)
+    boat.move()
+    boat.display(top, view)
+
+    for light in lights:
+        light.seen_from(boat, view)
+    boat.draw_hull(view)
+
+    cv2.imshow(winname, vstack((view, top)))
+    cv2.waitKey(1)
+
+cv2.destroyAllWindows()
+listener.stop()

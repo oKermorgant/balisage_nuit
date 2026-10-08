@@ -49,3 +49,8 @@ Un champ avec le motif du feu contenant:
 ## Exemples
 
 Dans le dossier `zones`, quelques exemples en Bretagne
+
+
+## Installation
+
+Nécessite `OpenCV`, `numpy`  et `evdev`.

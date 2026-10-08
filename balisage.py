@@ -1,7 +1,5 @@
 import cv2
 import numpy as np
-from pynput.keyboard import Key
-from scipy import ndimage
 from time import time, sleep
 
 dt = 0.025
@@ -31,19 +29,37 @@ bto = load_im('bto.png', W/20)
 star = load_im('feu.png', 30)
 
 
+def rotate(image, rotation = 0.):
+
+    return outImg
+
+
 def paste(src, dst, pos, rotation = 0.):
-    rotated = ndimage.rotate(src, -rotation*180/np.pi, reshape=True)
+
+    # rotate
+    h, w = src.shape[:2]
+    img_c = (w / 2, h / 2)
+
+    rot = cv2.getRotationMatrix2D(img_c, -rotation*180/np.pi, 1)
+
+    sin = np.sin(-rotation)
+    cos = np.cos(-rotation)
+    xf = int((h * abs(sin)) + (w * abs(cos)))
+    yf = int((h * abs(cos)) + (w * abs(sin)))
+    rot[0, 2] += ((xf / 2) - img_c[0])
+    rot[1, 2] += ((yf / 2) - img_c[1])
+    rotated = cv2.warpAffine(src, rot, (xf, yf), flags=cv2.INTER_LINEAR)
+
+    # get pasting position
 
     x, y = pos
 
-    x1 = int(x)-rotated.shape[1]//2
-    y1 = int(y)-rotated.shape[0]//2
-    x2 = x1 + rotated.shape[1]
-    y2 = y1 + rotated.shape[0]
-
+    x1 = int(x)-xf//2
+    y1 = int(y)-yf//2
+    x2 = x1 + xf
+    y2 = y1 + yf
     x0 = 0
     y0 = 0
-    yf,xf = rotated.shape[:2]
 
     if x1 < 0:
         x0 -= x1
@@ -229,39 +245,35 @@ class Boat:
                                         [mid-w,view_h-3],[mid+w,view_h-3]])],[.5,.5,.5])
         im[-2:] = [1.,1.,1.]
 
-    def on_press(self,key: Key):
+    def on_press(self,key: str):
 
         w = 2.
 
-        if key == Key.up:
+        if key == 'UP':
             self.vx = self.vtarget
-        elif key == Key.down:
+        elif key == 'DOWN':
             self.vx = -self.vtarget
-        elif key == Key.left:
+        elif key == 'LEFT':
             self.w = -w
-        elif key == Key.right:
+        elif key == 'RIGHT':
             self.w = w
-        elif key == Key.ctrl_r:
+        elif key == 'RIGHT_CTRL':
             self.fwd = np.pi-self.fwd
-        if not hasattr(key, 'char'):
-            return
-        if key.char == '[':
+        elif key == 'LEFTBRACE':
             self.vy = -self.vtarget/10
-        elif key.char == ']':
+        elif key == 'RIGHTBRACE':
             self.vy = self.vtarget/10
-        elif key.char == 'q':
+        elif key == 'Q':
             self.running = False
 
-    def on_release(self,key):
-        if key in (Key.up, Key.down):
+    def on_release(self, key: str):
+
+        if key in ('UP', 'DOWN'):
             self.vx = 0.
-        elif key in (Key.left, Key.right):
+        elif key in ('LEFT', 'RIGHT'):
             self.w = 0.
-        try:
-            if hasattr(key, 'char') and key.char in '[]':
-                self.vy = 0
-        except TypeError:
-            return
+        elif key in ('LEFTBRACE', 'RIGHTBRACE'):
+            self.vy = 0
 
     def move(self):
 
