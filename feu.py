@@ -13,7 +13,7 @@ parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFo
 parser.description = 'Balisage de nuit'
 parser.add_argument('-p', '--pattern', type=str, help='Motif', default='')
 parser.add_argument('-d', '--drift', type=float, help='Dérive (sud) due au vent en nœud', default=0)
-parser.add_argument('-f', '--file', type=str, help='Configuration',default='zones/default.yaml')
+parser.add_argument('-f', '--file', type=str, help='Configuration',default='zones/Cardinales.yaml')
 parser.add_argument('-o', '--obs', type=float, help='Distance pour vitesse réduite',default=5.)
 parser.add_argument('-r', '--reflexion', action='store_true', default = False)
 parser.add_argument('-v', '--visi', type=float, default = 0.75, help='Pourcentage de la portée du feu où on le voit brillant')

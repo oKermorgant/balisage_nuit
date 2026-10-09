@@ -293,10 +293,6 @@ class Boat:
     def display(self, top, view):
         paste(bto, top, GPS.gps.pixels(self.c)[0], self.theta)
 
-        cv2.putText(view, f'{self.vtarget*self.vc:.02f} kn',
-                    [W//10,int(.95*view_h)], cv2.FONT_HERSHEY_SIMPLEX, 1,
-                    [1.,1.,1.], 2, cv2.LINE_AA, False)
-
         cap = int(to_pi(self.theta, True)*180/np.pi)
         cv2.putText(view, f'Cap{' '*(3-len(str(cap)))} {cap}',
                     [3*W//4,int(.95*view_h)], cv2.FONT_HERSHEY_SIMPLEX, 1,

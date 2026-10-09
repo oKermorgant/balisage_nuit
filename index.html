@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101b1c">
+  <title>Balisage de nuit</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #f0efe5;
+      --muted: #95a29c;
+      --line: #334343;
+      --panel: #172323;
+      --sea: #101b1c;
+      --signal: #e2b970;
+      font-family: "Avenir Next", Avenir, "Segoe UI", sans-serif;
+      background: var(--sea);
+      color: var(--ink);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: flex; flex-direction: column; }
+    .toolbar {
+      display: flex; align-items: center; gap: 16px; min-height: 78px; padding: 12px 22px;
+      background: #172323; border-bottom: 1px solid var(--line); flex-wrap: wrap;
+    }
+    .brand { display: flex; align-items: center; gap: 11px; margin-right: auto; min-width: 205px; }
+    .brand-mark { display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid var(--signal); color: var(--signal); font: 700 17px Georgia, serif; }
+    .brand strong { display: block; font: 600 16px Georgia, serif; letter-spacing: 0; }
+    .brand small { display: block; margin-top: 3px; color: var(--muted); font: 10px ui-monospace, monospace; text-transform: uppercase; }
+    .field { display: grid; gap: 5px; color: #b6c0b8; font-size: 11px; white-space: nowrap; }
+    .field small { display: inline; color: var(--muted); font-size: 10px; }
+    select, input:not([type="checkbox"]) {
+      height: 34px; border: 1px solid #425251; border-radius: 3px; background: #101b1c; color: var(--ink);
+      padding: 0 9px; font: 12px ui-monospace, monospace; outline: none;
+    }
+    select:focus, input:focus { border-color: var(--signal); }
+    .pattern-field { min-width: 148px; }
+    .numeric-field input { width: 84px; }
+    .map-opacity-field { width: 116px; }
+    .map-opacity-field input[type="range"] { width: 116px; height: 14px; padding: 0; border: 0; background: transparent; accent-color: var(--signal); cursor: pointer; }
+    .map-opacity-ends { display: flex; justify-content: space-between; margin-top: -5px; }
+    .map-opacity-ends small { color: var(--muted); font-size: 9px; }
+    .check-field { display: flex; align-items: center; gap: 7px; height: 34px; color: #c9d0c8; font-size: 12px; white-space: nowrap; }
+    .check-field input { accent-color: var(--signal); width: 15px; height: 15px; }
+    button { height: 34px; padding: 0 11px; border: 1px solid #59645b; border-radius: 3px; background: transparent; color: var(--ink); font-size: 12px; cursor: pointer; }
+    button:hover { border-color: var(--signal); color: var(--signal); }
+    button:first-letter { color: var(--signal); }
+    .stage { position: relative; display: grid; place-items: center; flex: 1; padding: 15px; min-height: 0; background: radial-gradient(ellipse at 50% 48%, #1b3030 0%, #101b1c 68%); }
+    canvas { display: block; width: min(100%, 1240px); height: auto; aspect-ratio: 4 / 3; border: 1px solid #34494a; box-shadow: 0 20px 65px #03090988; }
+    .light-tooltip { position: absolute; z-index: 2; padding: 6px 9px; border: 1px solid #66746b; border-radius: 3px; background: rgba(7, 17, 19, 0.96); color: #f0efe5; font: 12px ui-monospace, monospace; box-shadow: 0 4px 14px #03090988; pointer-events: none; white-space: nowrap; }
+    .light-tooltip[hidden] { display: none; }
+    .statusbar { min-height: 69px; display: flex; align-items: center; gap: 25px; padding: 10px 22px; border-top: 1px solid var(--line); background: #172323; }
+    .readout { display: flex; align-items: center; gap: 9px; min-width: 185px; color: #c1cbc2; font: 11px ui-monospace, monospace; }
+    .readout i { width: 7px; height: 7px; border-radius: 50%; background: #78c895; box-shadow: 0 0 9px #78c89588; }
+    .telemetry { display: flex; gap: 24px; }
+    .telemetry span { display: grid; gap: 3px; }
+    .telemetry small { color: var(--muted); font: 9px ui-monospace, monospace; letter-spacing: 0; }
+    .telemetry b { color: #e7e6d9; font: 12px ui-monospace, monospace; font-weight: 500; }
+    .keys { display: flex; align-items: center; gap: 5px; margin-left: auto; color: var(--muted); font-size: 10px; white-space: nowrap; }
+    .copyright { color: var(--muted); font-size: 9px; white-space: nowrap; }
+    kbd { display: inline-grid; place-items: center; min-width: 19px; height: 21px; padding: 0 4px; border: 1px solid #43504d; border-radius: 2px; color: #d9dfd5; font: 10px ui-monospace, monospace; }
+    @media (max-width: 900px) {
+      .toolbar { gap: 10px 13px; padding: 12px 14px; }
+      .brand { width: 100%; margin: 0; }
+      .statusbar { align-items: flex-start; flex-wrap: wrap; gap: 12px 22px; padding: 12px 14px; }
+      .readout { min-width: 150px; }
+      .keys { width: 100%; margin: 0; flex-wrap: wrap; white-space: normal; }
+    }
+    @media (max-width: 520px) {
+      .field { flex: 1 1 42%; }
+      .field select, .pattern-field input { width: 100%; }
+      .numeric-field input { width: 100%; }
+      .map-opacity-field input[type="range"] { width: 100%; }
+      .stage { padding: 8px 0; }
+      canvas { width: 100%; border-left: 0; border-right: 0; }
+      .telemetry { width: 100%; justify-content: space-between; gap: 8px; }
+      .readout { width: 100%; }
+      .statusbar { gap: 11px; }
+      .keys { line-height: 1.8; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script src="nav.js"></script>
+</body>
+</html>
+
+
